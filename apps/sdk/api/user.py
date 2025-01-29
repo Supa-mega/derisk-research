@@ -49,9 +49,7 @@ async def get_user_debt(wallet_id: str, protocol_id: str) -> UserCollateralRespo
         HTTPException: If user or protocol not found
     """
     try:
-
         user_data = get_user_debt(protocol_id, wallet_id);
-        
         if not user_data:
             raise HTTPException(
                 status_code=404,
