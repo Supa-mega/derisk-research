@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, FastAPI
 import pandas as pd
 import json
 from sdk.schemas.schemas import UserCollateralResponse, UserDebtResponseModel, UserDepositResponse
+from db_connector import get_user_debt
 
 app = FastAPI()
 router = APIRouter(
@@ -33,7 +34,7 @@ for _, row in mock_data.iterrows():
 
 
 @router.get("/debt", response_model=UserCollateralResponse)
-async def get_user_debt(wallet_id: str, protocol_name: str) -> UserCollateralResponse:
+async def get_user_debt(wallet_id: str, protocol_id: str) -> UserCollateralResponse:
     """
     Get user's collateral information for a specific protocol.
     
@@ -48,20 +49,16 @@ async def get_user_debt(wallet_id: str, protocol_name: str) -> UserCollateralRes
         HTTPException: If user or protocol not found
     """
     try:
-        data_path = "apps/sdk/mock_data.csv"
-        df = pd.read_csv(data_path)
 
-        user_data = df[
-            (df['user'] == wallet_id) & 
-            (df['protocol_id'] == protocol_name)
-        ]
+        user_data = get_user_debt(protocol_id, wallet_id);
         
-        if user_data.empty:
+        if not user_data:
             raise HTTPException(
                 status_code=404,
                 detail=f"No data found for wallet {wallet_id} in protocol {protocol_name}"
             )
-        latest_entry = user_data.sort_values('timestamp', ascending=False).iloc[0]
+        
+        latest_entry = sorted(user_data, key=lambda x: x['timestamp'], reverse=True)[0]
         
         try:
             collateral = json.loads(latest_entry['collateral'].replace("'", '"'))
@@ -81,7 +78,6 @@ async def get_user_debt(wallet_id: str, protocol_name: str) -> UserCollateralRes
             status_code=500,
             detail=f"Internal server error: {str(e)}"
         )
-
 
 
 def parse_deposit_data(row):
